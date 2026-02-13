@@ -4,7 +4,7 @@
   "description": "-Ubuntu 24.04",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
@@ -28,6 +28,9 @@
     "pino-http": "^11.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "jest": "^30.2.0",
+    "nock": "^14.0.11",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2"
   }
 }
