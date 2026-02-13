@@ -1,4 +1,5 @@
 const { createhttpClient } = require('./httpClient');
+const { getGeoFixesCheckCache } = require('./httpClientCacheWaypoint');
 const env = require('../config/env');
 
 const Client = createhttpClient({
@@ -17,11 +18,11 @@ async function getGeoAirway() {
 }
 
 async function getGeoFixes() {
-    const response = await Client.get('/geopoints/list/fixes');
+    const response = await getGeoFixesCheckCache({ forcedRefresh: false });
     return response.data;
 }
 
-module.exports = { 
+module.exports = {
     getFMDisplayAll,
     getGeoAirway,
     getGeoFixes

@@ -1,5 +1,5 @@
 const express = require('express');
-const { displayAllFlights, displayAirways, displayFlightPlanByCallsign, displayAirRoutes } = require('./controller');
+const { displayAllFlights, displayAllSummary, displayAirways, displayFlightPlanByCallsign, displayAirRoutes, displayFixes } = require('./controller');
 
 const router = express.Router();
 
@@ -10,10 +10,16 @@ router.get('/health', (req, res) => {
 // GET Display Flight Plan
 router.get('/displayAll', displayAllFlights);
 router.get('/displayAirRoutes', displayAirRoutes);
-router.get('/display', displayFlightPlanByCallsign);
+
+router.get('/waypoint', displayFixes);
+
+// router.get('/waypointsGeo', displayWaypointsGeo);
 
 // GET airways
 router.get('/airways', displayAirways);
 
+// For FlightPath-UI
+router.get('/flights', displayAllSummary);
+router.get('/flightDetails', displayFlightPlanByCallsign);
 
 module.exports = router;

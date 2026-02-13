@@ -1,0 +1,43 @@
+const { createhttpClient } = require('./httpClient');
+const env = require('../config/env');
+
+const Client = createhttpClient({
+    baseURL: env.EXTERNAL_API_BASE_URL,
+    headers: { 'apikey': `${env.EXTERNAL_API_KEY}` }
+});
+let cached = null
+let cachedAt = 0
+let inProgress = null
+
+const TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
+
+async function getGeoFixesAPI() {
+    const res = await Client.get('/geopoints/list/fixes', {
+        timeout: 20000
+    });
+    return res.data;
+}
+
+async function getGeoFixesCheckCache({ forcedRefresh = false }) {
+    const now = Date.now();
+    const expired = !cached || (now - cachedAt) > TTL_MS
+    if (!expired && !forcedRefresh) {
+        return { data: cached };
+    }
+    console.log('not cached')
+    if (!inProgress) {
+        inProgress = (async () => {
+            const data = await getGeoFixesAPI();
+            cached = data;
+            cachedAt = Date.now();
+            return { data: cached };
+        })().finally(() => {
+            inProgress = null;
+        });
+    }
+    return inProgress;
+}
+
+module.exports = {
+    getGeoFixesCheckCache
+};
