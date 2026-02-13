@@ -25,7 +25,6 @@ const displayAirRoutes = async (req, res) => {
             return res.status(404).json({ error: 'Flight plan not found' });
         }
 
-        console.log('displayAirRoutes');
         const result = retrieveRoutes(flightPlan);
 
         if (!result) {
@@ -42,9 +41,7 @@ const displayAirRoutes = async (req, res) => {
 function retrieveRoutes(flightPlans) {
     const results = flightPlans
     .map(plan => plan.filedRoute?.routeText)
-    .filter(Boolean);
-    
-    console.log('Route Text Results:', results);
+    .filter(Boolean);    
     return results;
 }
 
