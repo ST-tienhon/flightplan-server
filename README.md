@@ -17,8 +17,22 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 nvm install 24
 ```
 
-
-## Update System
+## Local Environment (rename .env file)
 ```bash
-npm init 
+mv .env.example .env
+Update your .env file with api key.
+```
+
+## Running Application (development)
+```bash
+git clone https://github.com/ST-tienhon/flightplan-server.git
+cd flightplan-server
+npm install
+npm run dev
+```
+
+## Docker Run
+```bash
+docker build -t server .
+docker run -d --env-file .env -p 3000:3000 server:latest
 ```
