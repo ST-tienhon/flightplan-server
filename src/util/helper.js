@@ -129,7 +129,8 @@ function pickBestWaypoints(waypoints) {
 }
 
 function retrieveSummary(flightPlans) {
-  const results = flightPlans.map(({ aircraftIdentification, departure, arrival }) => ({
+  const results = flightPlans.map(({ _id, aircraftIdentification, departure, arrival }) => ({
+    id: _id,
     callsign: aircraftIdentification,
     dep: departure?.departureAerodrome,
     arr: arrival?.destinationAerodrome
@@ -158,9 +159,9 @@ function findByWaypoint(fixes, waypoint) {
   return { waypoint: waypoint.toUpperCase(), latitude: lat, longitude: lon };
 }
 
-function findByCallsign(flightPlans, callsign) {
+function findByID(flightPlans, id) {
   return Object.values(flightPlans).find(
-    plan => plan.aircraftIdentification === callsign);
+    plan => plan._id === id);
 }
 
 function parseRouteElements(routeElement) {
@@ -193,17 +194,36 @@ function parseRouteElements(routeElement) {
 }
 
 function enrichWaypointsWithCoordinates(waypoints, fixesMap, navaidsMap) {
-  return waypoints
-    .map((waypoint) => {
-      const key = String(waypoint).trim().toUpperCase();
-      const found = fixesMap[key] || navaidsMap[key];
+  return waypoints.map((waypoint) => {
+    const key = String(waypoint).trim().toUpperCase();
 
-      if (!found) return { name: key, candidates: [], missing: true };
+    const fixes = fixesMap[key];
+    const navaids = navaidsMap[key];
 
-      const candidates = Array.isArray(found) ? found : [found];
+    let candidates = [];
 
-      return { name: key, candidates };
-    });
+    if (fixes) {
+      candidates.push(...(Array.isArray(fixes) ? fixes : [fixes]));
+    }
+
+    if (navaids) {
+      candidates.push(...(Array.isArray(navaids) ? navaids : [navaids]));
+    }
+
+    // Optional: remove duplicate lat/lng pairs
+    candidates = candidates.filter(
+      (c, i, arr) =>
+        arr.findIndex(
+          x => x.lat === c.lat && x.lng === c.lng
+        ) === i
+    );
+
+    return {
+      name: key,
+      candidates,
+      missing: candidates.length === 0
+    };
+  });
 }
 
 function enrichRouteWithAirportsDep(departure, routeWaypoints, airportMap) {
@@ -250,7 +270,7 @@ module.exports = {
   retrieveSummary,
   retrieveRoutes,
   findByWaypoint,
-  findByCallsign,
+  findByID,
   parseRouteElements,
   enrichWaypointsWithCoordinates,
   enrichRouteWithAirportsDep,

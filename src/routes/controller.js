@@ -1,7 +1,7 @@
 const { getFMDisplayAll, getGeoAirway, getGeoFixes, getGeoAirports, getGeoNavaids } = require('../clients/externalApi');
 const logger = require('../util/logger');
 const { parseAirports, parseFixes, parseNavaids, pickBestWaypoints, retrieveSummary, retrieveRoutes, findByWaypoint,
-    findByCallsign, parseRouteElements, enrichWaypointsWithCoordinates, enrichRouteWithAirportsDep, enrichRouteWithAirportsArr
+    findByID, parseRouteElements, enrichWaypointsWithCoordinates, enrichRouteWithAirportsDep, enrichRouteWithAirportsArr
 } = require('../util/helper');
 
 // Module-level maps for caching lookup data
@@ -86,12 +86,12 @@ const displayAirRoutes = async (req, res) => {
     }
 };
 
-const displayFlightPlanByCallsign = async (req, res) => {
+const displayFlightPlanByID = async (req, res) => {
     try {
-        const { callsign } = req.query;
+        const { id } = req.query;
 
-        if (!callsign) {
-            return res.status(404).json({ error: 'Callsign required' });
+        if (!id) {
+            return res.status(404).json({ error: 'ID required' });
         }
 
         const allFlightPlan = await getFMDisplayAll();
@@ -100,22 +100,47 @@ const displayFlightPlanByCallsign = async (req, res) => {
             return res.status(404).json({ error: 'Flight plans not found' });
         }
 
-        const flightPlan = findByCallsign(allFlightPlan, callsign.toUpperCase());
-
+        const flightPlan = findByID(allFlightPlan, id);
+        console.log('Flight plan found by ID:', flightPlan ? flightPlan._id : 'None');
         if (!flightPlan) {
-            return res.status(404).json({ error: `Flight plan by callsign ${callsign} not found` });
+            return res.status(404).json({ error: `Flight plan by ID ${id} not found` });
         }
 
-        const routeElements = parseRouteElements(flightPlan.filedRoute?.routeElement);
+        if (!flightPlan.filedRoute || !flightPlan.filedRoute.routeElement) {
+            return res.status(200).json({
+                callsign: flightPlan.aircraftIdentification,
+                dep: flightPlan.departure?.departureAerodrome,
+                arr: flightPlan.arrival?.destinationAerodrome,
+                routeText: null,
+                waypoints: null,
+                legs: null
+            });
+        }
+        const routeElements = parseRouteElements(flightPlan.filedRoute.routeElement);
+        if (!routeElements) {
+            return res.status(404).json({ error: 'Route elements not found' });
+        }
         const routeWaypoints = enrichWaypointsWithCoordinates(routeElements.waypoints, fixesMap, navaidsMap);
+        if (routeWaypoints.length === 0) {
+            return res.status(404).json({ error: 'No waypoints found in route' });
+        }
         const routeWithDeparture = enrichRouteWithAirportsDep(flightPlan.departure?.departureAerodrome, routeWaypoints, airportMap);
+        if (routeWithDeparture.length === 0) {
+            return res.status(404).json({ error: 'No departure airport found' });
+        }
         const routeWithArrival = enrichRouteWithAirportsArr(flightPlan.arrival?.destinationAerodrome, routeWithDeparture, airportMap);
+        if (routeWithArrival.length === 0) {
+            return res.status(404).json({ error: 'No arrival airport found' });
+        }
         const bestWaypoints = pickBestWaypoints(routeWithArrival);
+        if (bestWaypoints.length === 0) {
+            return res.status(404).json({ error: 'No valid waypoints found after enrichment' });
+        }
 
         res.json({
             callsign: flightPlan.aircraftIdentification,
-            departure: flightPlan.departure?.departureAerodrome,
-            arrival: flightPlan.arrival?.destinationAerodrome,
+            dep: flightPlan.departure?.departureAerodrome,
+            arr: flightPlan.arrival?.destinationAerodrome,
             routeText: flightPlan.filedRoute?.routeText,
             waypoints: bestWaypoints,
             legs: routeElements.legs
@@ -175,4 +200,4 @@ const updateData = async (req, res) => {
     }
 };
 
-module.exports = { displayAllFlights, displayAllSummary, displayAirRoutes, displayAirways, displayFlightPlanByCallsign, displayFixes, updateData };
+module.exports = { initializeMaps, displayAllFlights, displayAllSummary, displayAirRoutes, displayAirways, displayFlightPlanByID, displayFixes, updateData };
