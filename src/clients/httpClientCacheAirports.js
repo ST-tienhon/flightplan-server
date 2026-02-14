@@ -11,14 +11,14 @@ let inProgress = null
 
 const TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
 
-async function getGeoFixesAPI() {
-    const res = await Client.get('/geopoints/list/fixes', {
+async function getGeoAirpotsAPI() {
+    const res = await Client.get('/geopoints/list/airports', {
         timeout: 20000
     });
     return res.data;
 }
 
-async function getGeoFixesCheckCache({ forcedRefresh = false }) {
+async function getGeoAirportsCheckCache({ forcedRefresh = false }) {
     const now = Date.now();
     const expired = !cached || (now - cachedAt) > TTL_MS
     if (!expired && !forcedRefresh) {
@@ -26,7 +26,7 @@ async function getGeoFixesCheckCache({ forcedRefresh = false }) {
     }
     if (!inProgress) {
         inProgress = (async () => {
-            const data = await getGeoFixesAPI();
+            const data = await getGeoAirpotsAPI();
             cached = data;
             cachedAt = Date.now();
             return { data: cached };
@@ -38,5 +38,5 @@ async function getGeoFixesCheckCache({ forcedRefresh = false }) {
 }
 
 module.exports = {
-    getGeoFixesCheckCache
+    getGeoAirportsCheckCache
 };
