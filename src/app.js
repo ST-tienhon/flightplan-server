@@ -2,8 +2,15 @@ const express = require('express');
 const routes = require('./routes/routes');
 const logger = require('./util/logger');
 const { pinoHttp } = require('pino-http');
+const cors = require('cors');
 
 const app = express();
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']   
+}));
 
 // Middleware
 app.use(express.json());
