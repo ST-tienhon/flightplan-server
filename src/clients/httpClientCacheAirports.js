@@ -11,7 +11,7 @@ let inProgress = null
 
 const TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
 
-async function getGeoAirpotsAPI() {
+async function getGeoAirportsAPI() {
     const res = await Client.get('/geopoints/list/airports', {
         timeout: 20000
     });
@@ -26,7 +26,7 @@ async function getGeoAirportsCheckCache({ forcedRefresh = false }) {
     }
     if (!inProgress) {
         inProgress = (async () => {
-            const data = await getGeoAirpotsAPI();
+            const data = await getGeoAirportsAPI();
             cached = data;
             cachedAt = Date.now();
             return { data: cached };
