@@ -1,7 +1,7 @@
 const app = require('./app');
 const env = require('./config/env');
 const logger = require('./util/logger');
-const { initializeMaps } = require('./routes/controller');
+const { initializeMaps } = require('./controllers/controller');
 
 async function startServer() {
     try {

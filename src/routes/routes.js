@@ -1,5 +1,5 @@
 const express = require('express');
-const { displayAllFlights, displayAllSummary, displayAirways, displayFlightPlanByID, displayAirRoutes, displayFixes, updateData } = require('./controller');
+const { displayAllFlights, displayAllSummary, displayAirways, displayFlightPlanByID, displayAirRoutes, displayFixes, updateData } = require('../controllers/controller');
 
 const router = express.Router();
 

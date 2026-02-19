@@ -12,7 +12,7 @@ jest.mock('../clients/externalApi', () => ({
 
 const externalApi = require('../clients/externalApi');
 const app = require('../app');
-const controller = require('../routes/controller');
+const controller = require('../controllers/controller');
 
 describe('Routes (src/app.js + src/routes/routes.js)', () => {
   beforeAll(async () => {
