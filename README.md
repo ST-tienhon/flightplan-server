@@ -160,49 +160,81 @@ Enhancement:
 #### 2.2.3 Business Logic
 
 ##### 2.2.3.1 Design Challenges & Solutions
-##### 2.2.3.1.1 Issue 1 - Excessive Data from External Service 
+##### 2.2.3.1.1 Excessive Data from External Service 
 **Problem**  
 /geopoints/list/fixes contains quite a large response of 5.39mb with 200~600ms response time.  
 
 
 **Solution**  
 Caching mechanism is used.  
-
-
-**Reasoning**
-Assumption is that these waypoints are not updated as frequently, to only request for new fixes if last call is more than 6 hours ago.  
+Assuming these waypoints are not updated as frequently, to only request for new fixes if last call is more than 6 hours ago.  
 Speeds up subsequent queries that makes use of fixes.  
 
 
-##### 2.2.3.1.2 Issue 2 - Associating flight plan Fixes with coordinates
+##### 2.2.3.1.2 Associating flight plan Fixes with coordinates
 **Problem**  
 Enriching flight plan route Fixes with lat lon through string matching with cached data also takes long time.
 
 
 **Solution**  
 Pre-load the Fixes array into a map for faster retrieval.  
-Also pre-load Airports and Navaids.
-
-
-**Reasoning**
+Also pre-load Airports and Navaids.  
 Initial object was array of waypoints O(n), subsequent map O(1).  
+
+
 Eventually found out there are another api that can be used to make individual query.  
 Will be simpler to query for each fixes' coordinates.
 
-##### 2.2.3.1.3 Issue 3 - Handling Duplicate Fixes with coordinates 
+
+##### 2.2.3.1.3 Duplicate name in Fixes with different coordinates 
 **Problem**  
-Initial path on UI looks off on certain waypoints (e.g. VKL). Because map only kept 1 entry of lat lon.
+Initial path on UI looks off on certain waypoints (e.g. VKL).
 
 
 **Solution**  
+Because initial map only kept 1 entry of lat lon.
 Added array to map's object to keep track of multiple possible waypoints.  
 With multiple coordinates, need a function to resolve and pick best possible waypoint.  
 
 
-##### 2.2.3.1.4 Issue 4 - Handling Duplicate Fixes + Navaids with coordinates (e.g. SDG)
-##### 2.2.3.1.5 Issue 5 - Labeling Airways purely based on 
+##### 2.2.3.1.4 Duplicate name in Fixes and Navaids with different coordinates
+**Problem**  
+Initial path on UI looks off on certain waypoints (e.g. SDG).
 
-##### 2.2.3.2 GET /api/flights 
+
+**Solution**  
+Initially thought that if waypoint can be found with Fixes, skip searching Navaids to speed things up.
+To search through both maps and append all coordinates.  
+With multiple coordinates, need a function to resolve and pick best possible waypoint.  
+
+
+##### 2.2.3.1.5 Choose best waypoint from multiple coordinates
+**Problem**
+A same waypoint name may have multiple set of lat lon values. To identify the proper lat lon to use.
+
+
+**Solution**
+
+
+##### 2.2.3.1.6 Labeling Airways purely based on 
+
+##### 2.2.3.2 Application Lifecycle
+```mermaid
+stateDiagram-v2
+
+    [*] --> Starting
+
+    Starting --> Initializing : Load config <br/> API URL and Key
+    Initializing --> FetchingData : GET /geopoints/list/airports <br/> GET /geopoints/list/fixes <br/> GET /geopoints/list/navaids
+
+    FetchingData --> Ready : Store airports/navaids/fixes
+
+    Ready --> Listening : app.listen(3000)
+
+    Listening --> Listening : Handle incoming API requests
+```
+
+##### 2.2.3.3 GET /api/flights 
 ```mermaid
 sequenceDiagram
     participant A as Client <br/> (FlightPlan-UI)
@@ -212,13 +244,30 @@ sequenceDiagram
     B->>C: GET /flight-manager/displayAll
     C-->>B: List of full flight object JSON response
     activate B
-    note right of B: Filtering for a summarized fields
+    note left of B: Filtering for a summarized fields
     B-->>A: JSON response [{id, callsign, departure, arrival}]
     deactivate B
 ```
 
-##### 2.2.3.3 GET /api/flightDetails?id=
-
+##### 2.2.3.4 GET /api/flightDetails?id=
+```mermaid
+---
+config:
+    sequence:
+        noteAlign: left
+---
+sequenceDiagram
+    participant A as Client <br/> (FlightPlan-UI)
+    participant B as Server <br/> (FlightPlan-Server)
+    participant C as External Service <br/> (ClientSwimAPI)
+    A->>B: GET /api/flightDetails?id=
+    activate B
+    B->>C: GET /flight-manager/displayAll
+    C-->>B: List of full flight object JSON response
+    note left of B: Find by flight plan id <br/> Process routeElement for waypoints and airways <br/> Enrich waypoints with coordinates <br/> Enrich route with Departure and Arrival Airports <br/> Pick best waypoints
+    B-->>A: JSON response [{callsign, dep, arr, routeText, waypoints, legs}]
+    deactivate B
+```
 
 
 ### 2.3 Setup & Run
