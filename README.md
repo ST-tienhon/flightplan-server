@@ -159,82 +159,20 @@ Enhancement:
 
 #### 2.2.3 Business Logic
 
-##### 2.2.3.1 Design Challenges & Solutions
-##### 2.2.3.1.1 Excessive Data from External Service 
-**Problem**  
-/geopoints/list/fixes contains quite a large response of 5.39mb with 200~600ms response time.  
-
-
-**Solution**  
-Caching mechanism is used.  
-Assuming these waypoints are not updated as frequently, to only request for new fixes if last call is more than 6 hours ago.  
-Speeds up subsequent queries that makes use of fixes.  
-
-
-##### 2.2.3.1.2 Associating flight plan Fixes with coordinates
-**Problem**  
-Enriching flight plan route Fixes with lat lon through string matching with cached data also takes long time.
-
-
-**Solution**  
-Pre-load the Fixes array into a map for faster retrieval.  
-Also pre-load Airports and Navaids.  
-Initial object was array of waypoints O(n), subsequent map O(1).  
-
-
-Eventually found out there are another api that can be used to make individual query.  
-Will be simpler to query for each fixes' coordinates.
-
-
-##### 2.2.3.1.3 Duplicate name in Fixes with different coordinates 
-**Problem**  
-Initial path on UI looks off on certain waypoints (e.g. VKL).
-
-
-**Solution**  
-Because initial map only kept 1 entry of lat lon.
-Added array to map's object to keep track of multiple possible waypoints.  
-With multiple coordinates, need a function to resolve and pick best possible waypoint.  
-
-
-##### 2.2.3.1.4 Duplicate name in Fixes and Navaids with different coordinates
-**Problem**  
-Initial path on UI looks off on certain waypoints (e.g. SDG).
-
-
-**Solution**  
-Initially thought that if waypoint can be found with Fixes, skip searching Navaids to speed things up.
-To search through both maps and append all coordinates.  
-With multiple coordinates, need a function to resolve and pick best possible waypoint.  
-
-
-##### 2.2.3.1.5 Choose best waypoint from multiple coordinates
-**Problem**
-A same waypoint name may have multiple set of lat lon values. To identify the proper lat lon to use.
-
-
-**Solution**
-
-
-##### 2.2.3.1.6 Labeling Airways purely based on 
-
-##### 2.2.3.2 Application Lifecycle
+##### 2.2.3.1 Application Lifecycle
 ```mermaid
 stateDiagram-v2
 
     [*] --> Starting
 
     Starting --> Initializing : Load config <br/> API URL and Key
-    Initializing --> FetchingData : GET /geopoints/list/airports <br/> GET /geopoints/list/fixes <br/> GET /geopoints/list/navaids
-
+    Initializing --> FetchingData : Retrieve airports/navaids/fixes
     FetchingData --> Ready : Store airports/navaids/fixes
-
     Ready --> Listening : app.listen(3000)
-
     Listening --> Listening : Handle incoming API requests
 ```
 
-##### 2.2.3.3 GET /api/flights 
+##### 2.2.3.2 GET /api/flights 
 ```mermaid
 sequenceDiagram
     participant A as Client <br/> (FlightPlan-UI)
@@ -249,7 +187,7 @@ sequenceDiagram
     deactivate B
 ```
 
-##### 2.2.3.4 GET /api/flightDetails?id=
+##### 2.2.3.3 GET /api/flightDetails?id=
 ```mermaid
 ---
 config:
@@ -268,6 +206,128 @@ sequenceDiagram
     B-->>A: JSON response [{callsign, dep, arr, routeText, waypoints, legs}]
     deactivate B
 ```
+
+##### 2.2.3.4 Design Challenges & Solutions
+##### 2.2.3.4.1 Excessive Data from External Service 
+**Problem**  
+/geopoints/list/fixes contains quite a large response of 5.39mb with 200~600ms response time.  
+
+
+**Solution**  
+Caching mechanism is used.  
+Assuming these waypoints are not updated as frequently, to only request for new fixes if last call is more than 6 hours ago.  
+Speeds up subsequent queries that makes use of fixes.  
+
+
+##### 2.2.3.4.2 Associating flight plan Fixes with coordinates
+**Problem**  
+Enriching flight plan route Fixes with lat lon through string matching with cached data also takes long time.
+
+
+**Solution**  
+Pre-load the Fixes array into a map for faster retrieval.  
+Also pre-load Airports and Navaids.  
+Initial object was array of waypoints O(n), subsequent map O(1).  
+
+
+Eventually found out there are another api that can be used to make individual query.  
+Will be simpler to query for each fixes' coordinates.
+
+
+##### 2.2.3.4.3 Duplicate name in Fixes with different coordinates 
+**Problem**  
+Initial path on UI looks off on certain waypoints (e.g. VKL).
+
+
+**Solution**  
+Because initial map only kept 1 entry of lat lon.
+Added array to map's object to keep track of multiple possible waypoints.  
+With multiple coordinates, need a function to resolve and pick best possible waypoint.  
+
+
+##### 2.2.3.4.4 Duplicate name in Fixes and Navaids with different coordinates
+**Problem**  
+Initial path on UI looks off on certain waypoints (e.g. SDG).
+
+
+**Solution**  
+Initially thought that if waypoint can be found with Fixes, skip searching Navaids to speed things up.
+To search through both maps and append all coordinates.  
+With multiple coordinates, need a function to resolve and pick best possible waypoint.  
+
+
+##### 2.2.3.4.5 Choose best waypoint from multiple coordinates
+**Problem**  
+A same waypoint name may have multiple set of lat lon values. To identify the best lat lon to use.
+
+
+**Solution**  
+To pick best lat lon which gives the lowest distance base on the chain of waypoints.  
+
+<details>
+  <summary>Click here to expand!</summary>
+
+Sample waypoints with multiple lat lon:
+```
+W1: [ { lat: 7.18, lng: 79.89 } ]
+W2: [ { lat: -4.79, lng: 144.25 }, { lat: 13.03, lng: 7.69 }, { lat: -33.71, lng: 150.3 }, { lat: 7.16, lng: 79.87 } ]
+W3: [ { lat: 4.41, lng: 90.4 }, { lat: 4.50, lng: 90.30 }, { lat: 20.0, lng: 20.0 } ]
+W4: [ { lat: 3.27, lng: 94.85 } ]
+```
+Candidates of W2 from W1:
+| W2 idx | Distance  |
+| ------- | -------- |
+| 0       | 7264.4   |
+| 1       | 7907.6   |
+| 2       | 8676.8   |
+| 3       | 3.1  ✅  |
+
+Candidate 0 of W3 from Candidates of W2:
+| W2 idx | W1→W2 | W2→W3 (0) | Total        |
+| ------- | -------- | ------ | ------------ |
+| 0       | 7264.4   | 6068.1 | 13332.5      |
+| 1       | 7907.6   | 9108.8 | 17016.4      |
+| 2       | 8676.8   | 7570.4 | 16247.2      |
+| 3       | 3.1      | 1204.3 | **1207.4** ✅ |
+
+Candidate 1 of W3 from Candidates of W2:
+| W2 idx | W1→W2 | W2→W3 (1) | Total        |
+| ------- | -------- | ------ | ---------- |
+| 0       | 7264.4   | 6059   | 13323      |
+| 1       | 7907.6   | 9097   | 17004      |
+| 2       | 8676.8   | 7562   | 16239      |
+| 3       | 3.1      | 1192   | **1195** ✅ |
+
+Candidate 2 of W3 from Candidates of W2:
+| W2 idx | W1→W2 | W2→W3 (2) | Total        |
+| ------- | -------- | ------ | ----- |
+| 0       | 7264     | 11200  | 18464 |
+| 1       | 7907     | 3800   | 11707 |
+| 2       | 8676     | 12800  | 21476 |
+| 3       | 3.1      | 7700   | **7703** ✅ |
+
+Candidate of W4 from Candidates of W3:
+| W3 idx |  W1→W3  | W3→W4  | Total      |
+| ----- | -------- | ------ | ---------- |
+| 0     | 1207     | 510    | 1717       |
+| 1     | 1195     | 500    | **1695** ✅ |
+| 2     | 7703     | 9000   | 16703      |
+
+The distance/"cost" of current layer's Candidate to previous layer's Candidate:  
+```
+Layer 0: [ 0.0000 ]
+Layer 1: [ 7264.4038, 7907.6349, 8676.8137, 3.1328 ]
+Layer 2: [ 1207.3897, 1195.0000, 7703.0000 ]
+Layer 3: [ 1695.0000 ]
+```
+Tracking of best path:
+```
+Layer 0: [ -1 ]
+Layer 1: [ 0, 0, 0, 0 ]
+Layer 2: [ 3, 3, 3 ]
+Layer 3: [ 1 ]
+```
+</details>
 
 
 ### 2.3 Setup & Run
@@ -289,16 +349,16 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 nvm install 24
 ```
 
-##### Local Environment (rename .env file)
+##### Local Environment
 ```bash
-mv .env.example .env
+git clone https://github.com/ST-tienhon/flightplan-server.git
+cd flightplan-server
+cp .env.example .env
 Update your .env file with api key.
 ```
 
 ##### Running Application (development)
 ```bash
-git clone https://github.com/ST-tienhon/flightplan-server.git
-cd flightplan-server
 npm install
 npm run dev
 ```
