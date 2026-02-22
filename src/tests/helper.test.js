@@ -110,8 +110,8 @@ describe('src/util/helper.js', () => {
       {
         name: 'VKL',
         candidates: [
-          { lat: 2.72, lng: 101.74 },   // near Malaysia
           { lat: 51.66, lng: 5.71 },    // Netherlands (massive jump)
+          { lat: 2.72, lng: 101.74 },   // near Malaysia
         ],
       },
       { name: 'WSSS', candidates: [{ lat: 1.36, lng: 103.99 }] },

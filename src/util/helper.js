@@ -53,6 +53,18 @@ function dist2(a, b) {
   return dLat * dLat + dLng * dLng;
 }
 
+function haversineKm(a, b) {
+  const R = 6371;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const lat1 = toRad(a.lat), lon1 = toRad(a.lng);
+  const lat2 = toRad(b.lat), lon2 = toRad(b.lng);
+  const dLat = lat2 - lat1, dLon = lon2 - lon1;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 // Picks the smoothest overall route through the candidates (global optimum)
 function pickBestWaypoints(waypoints) {
   if (!Array.isArray(waypoints) || waypoints.length === 0) return [];
@@ -89,7 +101,7 @@ function pickBestWaypoints(waypoints) {
         const a = prev[k], b = curr[j];
 
         const bad = (a.lat == null || a.lng == null || b.lat == null || b.lng == null);
-        const step = bad ? 1e12 : dist2(a, b);
+        const step = bad ? 1e12 : haversineKm(a, b);
 
         const cost = dp[i - 1][k] + step;
         if (cost < bestCost) {
