@@ -1,5 +1,5 @@
 const express = require('express');
-const { displayAllFlights, displayAllSummary, displayAirways, displayFlightPlanByID, displayAirRoutes, displayFixes, updateData } = require('../controllers/controller');
+const { displayAllFlights, displayAllSummary, displayAirways, displayFlightPlanByID, displayAirRoutes, displayFixes, computeRoute, updateData } = require('../controllers/controller');
 
 const router = express.Router();
 
@@ -21,6 +21,8 @@ router.get('/airways', displayAirways);
 // For FlightPath-UI
 router.get('/flights', displayAllSummary);
 router.get('/flightDetails', displayFlightPlanByID);
+
+router.get('/computeRoute', computeRoute);
 
 router.get('/updateData', updateData);
 

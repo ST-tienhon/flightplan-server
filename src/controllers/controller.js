@@ -1,4 +1,4 @@
-const { getFMDisplayAll, getGeoAirway, getGeoFixes, getGeoAirports, getGeoNavaids } = require('../clients/externalApi');
+const { getFMDisplayAll, getGeoAirway, getGeoFixes, getGeoAirports, getGeoNavaids, getAirwayWaypoints } = require('../clients/externalApi');
 const logger = require('../util/logger');
 const { parseAirports, parseFixes, parseNavaids, pickBestWaypoints, retrieveSummary, retrieveRoutes, findByWaypoint,
     findByID, parseRouteElements, enrichWaypointsWithCoordinates, enrichRouteWithAirportsDep, enrichRouteWithAirportsArr
@@ -8,6 +8,7 @@ const { parseAirports, parseFixes, parseNavaids, pickBestWaypoints, retrieveSumm
 let airportMap = {};
 let navaidsMap = {};
 let fixesMap = {};
+let airwayCache = {};
 
 // Initialize/refresh all maps on startup or on-demand
 async function initializeMaps() {
@@ -19,15 +20,118 @@ async function initializeMaps() {
         airportMap = parseAirports(airports);
         navaidsMap = parseNavaids(navaids);
         fixesMap = parseFixes(fixes);
+        airwayCache = await buildAirwayCache();
 
         logger.info('Maps initialized:', {
             airports: Object.keys(airportMap).length,
             navaids: Object.keys(navaidsMap).length,
-            fixes: Object.keys(fixesMap).length
+            fixes: Object.keys(fixesMap).length,
+            airwayCache: airwayCache.airwayToWaypoints.size
         });
     } catch (error) {
         logger.error('Error initializing maps:', error.message);
     }
+}
+
+function extractWaypoints(seqArray) {
+    if (!Array.isArray(seqArray) || seqArray.length === 0) return [];
+
+    const str = seqArray[0];
+
+    // Extract content inside brackets
+    const match = str.match(/\[(.*)\]/);
+    if (!match) return [];
+
+    return match[1]
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+}
+
+async function buildAirwayWaypoints(airwayCodes, concurrency = 2) {
+    const airwayToWaypoints = new Map();
+
+    let idx = 0;
+    let completed = 0;
+    let success = 0;
+    let failed = 0;
+    let inFlight = 0;
+
+    const startTime = Date.now();
+    const total = airwayCodes.length;
+
+    function logProgress() {
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        const rate = (completed / elapsedSec).toFixed(1);
+        console.log(
+            `[AirwayBuild] ${completed}/${total} | ok=${success} fail=${failed} | ` +
+            `inFlight=${inFlight} | ${rate}/sec | ${elapsedSec.toFixed(1)}s`
+        );
+    }
+
+    async function worker(workerId) {
+        while (true) {
+            const i = idx++;
+            if (i >= total) break;
+
+            const code = airwayCodes[i];
+            inFlight++;
+
+            try {
+                const raw = await getAirwayWaypoints(code);
+                const seq = extractWaypoints(raw, code);
+                if (seq.length >= 2) {
+                    airwayToWaypoints.set(code, seq);
+                    success++;
+                }
+            } catch (e) {
+                failed++;
+                console.warn(`Worker ${workerId} failed ${code}:`, e.message);
+            }
+
+            completed++;
+            inFlight--;
+
+            // Log every 200 completions
+            if (completed % 10 === 0 || completed === total) {
+                logProgress();
+            }
+        }
+    }
+
+    console.log(`Starting airway build: total=${total}, concurrency=${concurrency}`);
+
+    const workers = Array.from({ length: concurrency }, (_, i) => worker(i + 1));
+    await Promise.all(workers);
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(
+        `Airway build done. Success=${success}, Failed=${failed}, ` +
+        `Time=${totalTime}s, AvgRate=${(total / totalTime).toFixed(1)}/sec`
+    );
+    return airwayToWaypoints;
+}
+
+async function buildAirwayCache() {
+    const airwayCodes = await getGeoAirway();
+    const airwayToWaypoints = await buildAirwayWaypoints(airwayCodes);
+
+    // console.log('buildAirwayCache - airwayCodes:', airwayCodes.length, new Date());
+    // // Fetch waypoints per airway (you can parallelize with a limit if needed)
+    // for (const code of airwayCodes) {
+    //     const result = await getAirwayWaypoints(code);
+    //     const seq = extractWaypoints(result);
+    //     if (Array.isArray(seq) && seq.length >= 2) airwayToWaypoints.set(code, seq);
+    //     if (airwayToWaypoints.size % 100 === 0) console.log('buildAirwayCache - airwayCodes:', airwayToWaypoints.size, new Date());
+    // }
+
+    // console.log('buildAirwayCache - airwayCodes:', airwayToWaypoints.size);
+    // Build waypointById map using your DB
+    // Option 1 (best): preload all fixes/navaids once
+    const all = [].concat(Object.values(fixesMap)).concat(Object.values(navaidsMap));
+    const waypointById = new Map(all.map((n) => [n.id, n]));
+
+    return { airwayToWaypoints, waypointById };
 }
 
 const displayAllFlights = async (req, res) => {
@@ -190,6 +294,16 @@ const displayFixes = async (req, res) => {
     }
 };
 
+const computeRoute = async (req, res) => {
+    try {
+        await initializeMaps(); // Refresh maps with latest data
+
+        res.json({ data: "Backend updated with latest data" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 const updateData = async (req, res) => {
     try {
         await initializeMaps(); // Refresh maps with latest data
@@ -200,4 +314,4 @@ const updateData = async (req, res) => {
     }
 };
 
-module.exports = { initializeMaps, displayAllFlights, displayAllSummary, displayAirRoutes, displayAirways, displayFlightPlanByID, displayFixes, updateData };
+module.exports = { initializeMaps, displayAllFlights, displayAllSummary, displayAirRoutes, displayAirways, displayFlightPlanByID, displayFixes, computeRoute, updateData };

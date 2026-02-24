@@ -34,10 +34,16 @@ async function getGeoNavaids() {
     return response.data;
 }
 
+async function getAirwayWaypoints(airway) {
+    const response = await Client.get(`/geopoints/search/airways/${airway}`);
+    return response.data;
+}
+
 module.exports = {
     getFMDisplayAll,
     getGeoAirway,
     getGeoFixes,
     getGeoAirports,
-    getGeoNavaids
+    getGeoNavaids,
+    getAirwayWaypoints
 };
