@@ -38,7 +38,7 @@
 sequenceDiagram
     participant A as Client <br/> (FlightPlan-UI)
     participant B as Server <br/> (FlightPlan-Server)
-    participant C as External Service <br/> (ClientSwimAPI)
+    participant C as External Service <br/> (SwimAPI)
     A->>B: GET /api/flights <br/> GET /api/flightDetails
     activate B
     B->>C: GET /flight-manager/displayAll <br/> GET /geopoints/list
@@ -177,7 +177,7 @@ stateDiagram-v2
 sequenceDiagram
     participant A as Client <br/> (FlightPlan-UI)
     participant B as Server <br/> (FlightPlan-Server)
-    participant C as External Service <br/> (ClientSwimAPI)
+    participant C as External Service <br/> (SwimAPI)
     A->>B: GET /api/flights
     B->>C: GET /flight-manager/displayAll
     C-->>B: List of full flight object JSON response
@@ -197,7 +197,7 @@ config:
 sequenceDiagram
     participant A as Client <br/> (FlightPlan-UI)
     participant B as Server <br/> (FlightPlan-Server)
-    participant C as External Service <br/> (ClientSwimAPI)
+    participant C as External Service <br/> (SwimAPI)
     A->>B: GET /api/flightDetails?id=
     activate B
     B->>C: GET /flight-manager/displayAll
@@ -265,7 +265,7 @@ A same waypoint name may have multiple set of lat lon values. To identify the be
 To pick best lat lon which gives the lowest distance base on the chain of waypoints.  
 
 <details>
-  <summary>Click here to expand!</summary>
+  <summary>Click here to expand on Dynamic Programming Pathing</summary>
 
 Sample waypoints with multiple lat lon:
 ```
@@ -313,7 +313,7 @@ Candidate of W4 from Candidates of W3:
 | 1     | 1195     | 500    | **1695** ✅ |
 | 2     | 7703     | 9000   | 16703      |
 
-The distance/"cost" of current layer's Candidate to previous layer's Candidate:  
+DP tracks the total accumulated distance/"cost" of current layer's Candidate to previous layer's lowest cost Candidate:  
 ```
 Layer 0: [ 0.0000 ]
 Layer 1: [ 7264.4038, 7907.6349, 8676.8137, 3.1328 ]
